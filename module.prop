@@ -1,0 +1,7 @@
+id=anxcamera185x
+name=ANXCamera185X
+version=v185.1.0 (beta)
+versionCode=2301029
+author=@aeoliam
+description=MIUI Camera Port for AOSP-Based ROMS. Support Android 13 (T).
+support=https://t.me/aeoliam

@@ -1,0 +1,1 @@
+from https://github.com/XEonAX/ANXCamera/releases/download/83.singularity/LIBS_ANXCamera_Poco_arm64.7z
