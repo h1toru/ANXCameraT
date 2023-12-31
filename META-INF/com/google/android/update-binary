@@ -1,241 +1,33 @@
 #!/sbin/sh
-# by @aeoliam
 
-# default permissions
+#################
+# Initialization
+#################
+
 umask 022
 
-# temporary directory
-TMPDIR=/dev/tmp
-rm -rf $TMPDIR
-mkdir -p $TMPDIR
-chcon u:object_r:system_file:s0 $TMPDIR
-cd $TMPDIR
+# echo before loading util_functions
+ui_print() { echo "$1"; }
 
-# load utility functions
+require_new_magisk() {
+	ui_print "*******************************"
+	ui_print " Please install Magisk v20.4+! "
+	ui_print "*******************************"
+	exit 1
+}
+
+#########################
+# Load util_functions.sh
+#########################
+
 OUTFD=$2
 ZIPFILE=$3
 
 mount /data 2>/dev/null
 
+[ -f /data/adb/magisk/util_functions.sh ] || require_new_magisk
 . /data/adb/magisk/util_functions.sh
-setup_flashable
-mount_partitions
-api_level_arch_detect
-$BOOTMODE && boot_actions || recovery_actions
+[ $MAGISK_VER_CODE -lt 20400 ] && require_new_magisk
 
-# fetch module info
-unzip -qo "$ZIPFILE" 'module.prop' -d "$TMPDIR" >&2 || abort "! module.prop not found!"
-MODID=`grep_prop id $TMPDIR/module.prop`
-MODNAME=`grep_prop name $TMPDIR/module.prop`
-MODVER=`grep_prop version $TMPDIR/module.prop`
-MODVCODE=`grep_prop versionCode $TMPDIR/module.prop`
-MODAUTH=`grep_prop author $TMPDIR/module.prop`
-MODDESC=`grep_prop description $TMPDIR/module.prop`
-
-MODDIRNAME=modules
-$BOOTMODE && MODDIRNAME=modules_update
-MODULEROOT=$NVBASE/$MODDIRNAME
-MODPATH=$MODULEROOT/$MODID
-
-# create module directory
-rm -rf $MODPATH
-mkdir -p $MODPATH
-
-#########################
-# INSTALLATION
-#########################
-
-# fetch device info
-CODENAME=$(getprop ro.product.device)
-MODEL=$(getprop ro.product.model)
-API=$(getprop ro.build.version.sdk)
-REL=$(getprop ro.build.version.release)
-
-# extras
-A=aeoliam
-NOW=$(date +'%F %r %Z')
-
-unzip -qo "$ZIPFILE" 'addon/*' 'customize.sh' -d "$TMPDIR" >&2 || abort "! functions not found!"
-. $TMPDIR/addon/functions
-. $TMPDIR/customize.sh
-
-module_compability() {
-	ui_print "- Compability check"; sleep 3
-
-	# device information
-	if $DEVINF; then
-		ui_print "【─────────────────────────────────────────】"
-		ui_print "  ─ Device Model: $MODEL"
-		ui_print "  ─ Codename: $CODENAME"
-		ui_print "  ─ Android: $API ($REL)"
-		ui_print "【─────────────────────────────────────────】"
-		sleep 2
-	fi
-
-	# magisk version check
-	[ -z "$MIN_MAGISK" ] || { [ "$MAGISK_VER_CODE" -lt "$MIN_MAGISK" ] && abort "! Minimum Magisk is $MIN_MAGISK, please update your Magisk!"; }
-
-	# android version check
-	[ -z "$MIN_API" ] || { [ "$API" -lt "$MIN_API" ] && abort "! Your API (${API}) is lower than the Minimum API (${MIN_API})!"; }
-	[ -z "$MAX_API" ] || { [ "$API" -gt "$MAX_API" ] && abort "! Your API (${API}) is higher than the Maximum API (${MAX_API})!"; }
-}
-
-module_info() {
-	# module information
-	if $MODINF; then
-		ui_print "【─────────────────────────────────────────】"
-		ui_print "  ー Name        : $MODNAME"
-		ui_print "  ー Version     : $MODVER ($MODVCODE)"
-		ui_print "  ー Author      : $MODAUTH"
-		ui_print "  ー Description : $MODDESC"
-		ui_print "【─────────────────────────────────────────】"
-		sleep 2
-	fi
-}
-
-module_files() {
-	ui_print "- Extracting files"
-
-	# default files (do not change)
-	unzip -qo "$ZIPFILE" -d "$TMPDIR" >&2
-	cp -af ${TMPDIR}/module.prop $MODPATH
-	cp -af ${TMPDIR}/common/* $MODPATH
-	[ -d "${TMPDIR}/system" ] && cp -Raf ${TMPDIR}/system $MODPATH
-
-	# delay
-	sleep 2.5
-}
-
-module_permissions() {
-	ui_print "- Setting permissions"
-
-	# default permissions (do not change)
-	set_perm_recursive "$MODPATH" 0 0 0755 0644
-
-	# vendor directory
-	set_perm_recursive "${MODPATH}/system/vendor" 0 0 0755 0644 u:object_r:vendor_file:s0
-	set_perm_recursive "${MODPATH}/system/vendor/app" 0 0 0755 0644 u:object_r:vendor_app_file:s0
-	set_perm_recursive "${MODPATH}/system/vendor/etc" 0 0 0755 0644 u:object_r:vendor_configs_file:s0
-	set_perm_recursive "${MODPATH}/system/vendor/overlay" 0 0 0755 0644 u:object_r:vendor_overlay_file:s0
-
-	# bash directory
-	set_perm_recursive "${MODPATH}/system/bin" 0 2000 0755 0755
-	set_perm_recursive "${MODPATH}/system/xbin" 0 2000 0755 0755
-	set_perm_recursive "${MODPATH}/system/system_ext/bin" 0 2000 0755 0755
-	set_perm_recursive "${MODPATH}/system/vendor/bin" 0 2000 0755 0755 u:object_r:vendor_file:s0
-
-	# set executable permissions to all shell script
-	find "$MODPATH" -type 'f' -name '*.sh' | while read sh; do set_perm "$sh" 0 0 0755; done
-	
-	# delay
-	sleep 2.5
-}
-
-module_cleanup() {
-	ui_print "- Successfully installed!"
-
-	# remove hashtags
-	find "$MODPATH" -type 'f' -iname '*.sh' -o -iname '*.prop' | while read file; do
-		grep -v '#' $file > ${file}.tmp; mv -f ${file}.tmp $file
-	done
-
-	# remove unrelated files and empty directories
-	rmfind "$MODPATH" 'placeholder'
-	rmfind "$MODPATH" '.git*'
-	rmfind "$MODPATH" '*.json'
-	rmfind "$MODPATH" '*.md'
-	rmfind "$MODPATH"
-
-	# Update info for Magisk app
-	if $BOOTMODE; then
-		mktouch $NVBASE/modules/$MODID/update
-		rm -f $NVBASE/modules/$MODID/remove 2>/dev/null
-		rm -f $NVBASE/modules/$MODID/disable 2>/dev/null
-		cp -af $MODPATH/module.prop $NVBASE/modules/$MODID/module.prop
-	fi
-
-	cd /
-	rm -rf $TMPDIR
-
-	# delay
-	sleep 2
-}
-
-custom_script() {
-	# device support check
-	[ -f "${TMPDIR}/features/${CODENAME}.xml" ] || abort "! Your device is not supported!"
-
-	# anx files
-	cp -af "${TMPDIR}/features/${CODENAME}.xml" "${MODPATH}/system/etc/device_features/${CODENAME}.xml"
-	cp -af "${TMPDIR}/features/feature_$CODENAME" "${MODPATH}/system/etc/ANXCamera/cheatcodes/feature_$CODENAME"
-	
-	ANXDIR=/sdcard/.ANXCamera
-	[ -d "$ANXDIR" ] && rm -rf $ANXDIR
-	mkdir -p "$ANXDIR"
-	mkdir -p "${ANXDIR}/cheatcodes"
-	mkdir -p "${ANXDIR}/cheatcodes_reference"
-	mkdir -p "${ANXDIR}/features"
-	mkdir -p "${ANXDIR}/features_reference"
-	cp -af "${TMPDIR}/features/$CODENAME.xml" "${ANXDIR}/features/${CODENAME}.xml"
-	cp -af "${TMPDIR}/features/$CODENAME.xml" "${ANXDIR}/features_reference/${CODENAME}.xml"
-	cp -af "${TMPDIR}/features/feature_$CODENAME" "${ANXDIR}/cheatcodes/feature_$CODENAME"
-	cp -af "${TMPDIR}/features/feature_$CODENAME" "${ANXDIR}/cheatcodes_reference/feature_$CODENAME"
-	
-	# disable camera app
-	ui_print "- Disable other Camera app?"
-	ui_print "  ( Yes = Vol+ | No = Vol- )"
-	if chooseport 5; then
-		DSCAM=true
-	else
-		DSCAM=false
-	fi
-
-	local camera_pkglist="
-	com.android.camera
-	com.android.camera2
-	org.lineageos.snap
-	org.codeaurora.snapcam
-	org.grapheneos.camera
-	"
-	if $DSCAM; then
-		disable_app "$camera_pkglist" "$MODPATH"
-	fi
-
-	# qp gallery
-	ui_print "- Replace system's gallery with QP Gallery?"
-	ui_print "  ( Yes = Vol+ | No = Vol- )"
-	if chooseport 5; then
-		QPGALLERY=true
-	else
-		QPGALLERY=false
-	fi
-
-	local gallery_pkglist="
-	com.android.gallery
-	com.android.gallery3d
-	com.miui.gallery
-	com.google.android.apps.photos
-	com.google.android.apps.photosgo
-	"
-	if $QPGALLERY; then
-		disable_app "$gallery_pkglist" "$MODPATH"
-	else
-		rm -rf "${MODPATH}/system/product/priv-app/QPGallery"
-	fi
-
-	# remove other anxcamera module
-	ls -A "${NVBASE}/modules" | grep -i 'ANX' | while read ANXMOD; do
-		touch "$NVBASE/modules/${ANXMOD%/}/remove"
-		rm -f "$MODPATH/system/priv-app/ANXCamera/.replace"
-	done
-
-	# delay
-	sleep 2.5
-}
-
-module_compability
-module_info
-module_files
-custom_script
-module_permissions
-module_cleanup
+install_module
+exit 0
