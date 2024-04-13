@@ -1,0 +1,33 @@
+# Files that will always have LF line endings on checkin and checkout.
+* text eol=lf
+
+# Windows batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Files that are truly binary and should not be modified.
+*.zip binary
+*.7z binary
+*.rar binary
+*.tar binary
+*.tar.* binary
+*.tgz binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.ico binary
+*.webp binary
+*.gif binary
+*.mp4 binary
+*.mov binary
+*.webm binary
+*.mp3 binary
+*.aac binary
+*.apk binary
+*.abb binary
+
+# Magisk modules
+META-INF/** text eol=lf
+system/** binary
+common/** text eol=lf
