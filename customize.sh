@@ -24,7 +24,10 @@ anx_script() {
 
 	# make user configuration files
 	[ -d ${ANXDIR} ] && rm -rf ${ANXDIR}
-	mkdir -p "${ANXDIR}/{cheatcodes,cheatcodes_reference,features,features_reference}"
+	mkdir -p "${ANXDIR}/cheatcodes" \
+	         "${ANXDIR}/cheatcodes_reference" \
+			 "${ANXDIR}/features" \
+			 "${ANXDIR}/features_reference"
 	cp -af  "${FEATDIR}/${CODENAME}.xml" "${ANXDIR}/features/${CODENAME}.xml"
 	cp -af  "${FEATDIR}/${CODENAME}.xml" "${ANXDIR}/features_reference/${CODENAME}.xml"
 	cp -af  "${CODEDIR}/cheatcodes.json" "${ANXDIR}/cheatcodes/cheatcodes.json"
