@@ -1,4 +1,8 @@
 /.archive
 /.build
+*.log
 *.zip
-*.apk
+*.7z
+*.tar*
+*.tgz
+*.exe

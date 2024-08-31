@@ -1,10 +1,16 @@
-# Files that will always have LF line endings on checkin and checkout.
+##################################################
+# Modify files' line endings on checkin and checkout
+##################################################
+
+# Any unspecified file will have Unix line endings. (fallback)
 * text eol=lf
 
-# Windows batch files
+# Known Windows files
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
+*.reg text eol=crlf
+autounattend.xml text eol=crlf
 
 # Files that are truly binary and should not be modified.
 *.zip binary
